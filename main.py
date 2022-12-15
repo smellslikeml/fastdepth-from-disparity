@@ -9,6 +9,7 @@ import torch.optim
 cudnn.benchmark = True
 
 from models import ResNet
+from mobilenet_models import MobileNetSkipAdd, MobileNetSkipAddDisp
 from metrics import AverageMeter, Result
 from dataloaders.dense_to_sparse import UniformSampling, SimulatedStereo
 import criteria
@@ -45,6 +46,14 @@ def create_data_loaders(args):
             train_dataset = NYUDataset(traindir, type='train',
                 modality=args.modality, sparsifier=sparsifier)
         val_dataset = NYUDataset(valdir, type='val',
+            modality=args.modality, sparsifier=sparsifier)
+
+    elif args.data == 'nyudepthv2_disp':
+        from dataloaders.nyu_dataloader import NYUDatasetDisp
+        if not args.evaluate:
+            train_dataset = NYUDatasetDisp(traindir, type='train',
+                modality=args.modality, sparsifier=sparsifier)
+        val_dataset = NYUDatasetDisp(valdir, type='val',
             modality=args.modality, sparsifier=sparsifier)
 
     elif args.data == 'kitti':
@@ -123,6 +132,10 @@ def main():
         elif args.arch == 'resnet18':
             model = ResNet(layers=18, decoder=args.decoder, output_size=train_loader.dataset.output_size,
                 in_channels=in_channels, pretrained=args.pretrained)
+        elif args.arch == 'mobilenet_v2':
+            model = MobileNetSkipAdd(output_size=train_loader.dataset.output_size)
+        elif args.arch == 'mobilenet_v2_disp':
+            model = MobileNetSkipAddDisp(output_size=train_loader.dataset.output_size)
         print("=> model created.")
         optimizer = torch.optim.SGD(model.parameters(), args.lr, \
             momentum=args.momentum, weight_decay=args.weight_decay)
@@ -179,7 +192,7 @@ def main():
         }, is_best, epoch, output_directory)
 
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, arch=args.arch):
     average_meter = AverageMeter()
     model.train() # switch to train mode
     end = time.time()
@@ -262,13 +275,25 @@ def validate(val_loader, model, epoch, write_to_file=True):
             if i == 0:
                 if args.modality == 'rgbd':
                     img_merge = utils.merge_into_row_with_gt(rgb, depth, target, pred)
-                else:
-                    img_merge = utils.merge_into_row(rgb, target, pred)
+                elif args.arch == 'mobilenetv2_disp':
+                    img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
+                elif args.modality == 'rbg' and args.arch != 'mobilenetv2_disp':
+                    try:
+                        img_merge = utils.merge_into_row(rgb, target, pred)
+                    except:
+                        img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
+
             elif (i < 8*skip) and (i % skip == 0):
                 if args.modality == 'rgbd':
                     row = utils.merge_into_row_with_gt(rgb, depth, target, pred)
-                else:
-                    row = utils.merge_into_row(rgb, target, pred)
+                elif args.arch == 'mobilenetv2_disp':
+                    row = utils.merge_into_row_with_disp(rgb, target, pred)
+                elif args.modality == 'rgb' and args.arch != 'mobilenetv2_disp':
+                    try:
+                        row = utils.merge_into_row(rgb, target, pred)
+                    except:
+                        row = utils.merge_into_row_with_disp(rgb, target, pred)
+
                 img_merge = utils.add_row(img_merge, row)
             elif i == 8*skip:
                 filename = output_directory + '/comparison_' + str(epoch) + '.png'

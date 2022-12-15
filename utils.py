@@ -8,9 +8,9 @@ from PIL import Image
 cmap = plt.cm.viridis
 
 def parse_command():
-    model_names = ['resnet18', 'resnet50']
+    model_names = ['resnet18', 'resnet50', 'mobilenet_v2', 'mobilenet_v2_disp']
     loss_names = ['l1', 'l2']
-    data_names = ['nyudepthv2', 'kitti']
+    data_names = ['nyudepthv2', 'kitti', 'nyudepthv2_disp']
     from dataloaders.dense_to_sparse import UniformSampling, SimulatedStereo
     sparsifier_names = [x.name for x in [UniformSampling, SimulatedStereo]]
     from models import Decoder
@@ -111,6 +111,21 @@ def merge_into_row(input, depth_target, depth_pred):
     depth_target_col = colored_depthmap(depth_target_cpu, d_min, d_max)
     depth_pred_col = colored_depthmap(depth_pred_cpu, d_min, d_max)
     img_merge = np.hstack([rgb, depth_target_col, depth_pred_col])
+    
+    return img_merge
+
+def merge_into_row_with_disp(input, depth_target, depth_pred):
+    rgb, disp = input.split(1, dim=1)
+    rgb = 255 * np.transpose(np.squeeze(rgb.cpu().numpy()), (1,2,0)) # H, W, C
+    disp = 255 * np.transpose(np.squeeze(disp.cpu().numpy()), (1,2,0)) # H, W, C
+    depth_target_cpu = np.squeeze(depth_target.cpu().numpy())
+    depth_pred_cpu = np.squeeze(depth_pred.data.cpu().numpy())
+
+    d_min = min(np.min(depth_target_cpu), np.min(depth_pred_cpu))
+    d_max = max(np.max(depth_target_cpu), np.max(depth_pred_cpu))
+    depth_target_col = colored_depthmap(depth_target_cpu, d_min, d_max)
+    depth_pred_col = colored_depthmap(depth_pred_cpu, d_min, d_max)
+    img_merge = np.hstack([rgb, disp, depth_target_col, depth_pred_col])
     
     return img_merge
 

@@ -169,6 +169,9 @@ def adjust_gamma(img, gamma, gain=1):
     img = Image.fromarray(np_img, 'RGB').convert(input_mode)
     return img
 
+def tuple_of_tensors_to_tensor(tuple_of_tensors):
+    return  torch.stack(list(tuple_of_tensors), dim=0)
+
 
 class Compose(object):
     """Composes several transforms together.
