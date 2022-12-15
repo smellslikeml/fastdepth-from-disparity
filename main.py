@@ -275,24 +275,23 @@ def validate(val_loader, model, epoch, write_to_file=True):
             if i == 0:
                 if args.modality == 'rgbd':
                     img_merge = utils.merge_into_row_with_gt(rgb, depth, target, pred)
-                elif args.arch == 'mobilenetv2_disp':
-                    img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
-                elif args.modality == 'rbg' and args.arch != 'mobilenetv2_disp':
-                    try:
-                        img_merge = utils.merge_into_row(rgb, target, pred)
-                    except:
-                        img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
-
+                #elif args.arch == 'mobilenetv2_disp':
+                #    img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
+                else:
+                    if args.modality == 'rgb':
+                        if args.arch == 'mobilenet_v2_disp':
+                            img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
+                        else:
+                            img_merge = utils.merge_into_row(rgb, target, pred)
             elif (i < 8*skip) and (i % skip == 0):
                 if args.modality == 'rgbd':
                     row = utils.merge_into_row_with_gt(rgb, depth, target, pred)
-                elif args.arch == 'mobilenetv2_disp':
-                    row = utils.merge_into_row_with_disp(rgb, target, pred)
-                elif args.modality == 'rgb' and args.arch != 'mobilenetv2_disp':
-                    try:
-                        row = utils.merge_into_row(rgb, target, pred)
-                    except:
-                        row = utils.merge_into_row_with_disp(rgb, target, pred)
+                else:
+                    if args.modality == 'rgb':
+                        if args.arch == 'mobilenet_v2_disp':
+                            row = utils.merge_into_row_with_disp(rgb, target, pred)
+                        else:
+                            row = utils.merge_into_row(rgb, target, pred)
 
                 img_merge = utils.add_row(img_merge, row)
             elif i == 8*skip:
