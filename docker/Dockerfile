@@ -36,6 +36,7 @@ RUN pip3 install --upgrade pip
 RUN pip3 install h5py matplotlib imageio scikit-image opencv-python
 RUN pip3 install torch-0.4.1-cp36-cp36m-linux_x86_64.whl
 RUN pip3 install torchvision-0.2.0-py2.py3-none-any.whl
+RUN pip3 install blobconverter
 
 RUN pip3 uninstall -y scipy 
 RUN pip3 install scipy==1.2.2

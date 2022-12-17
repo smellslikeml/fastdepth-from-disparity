@@ -56,6 +56,8 @@ def parse_command():
                         help='evaluate model on validation set')
     parser.add_argument('--no-pretrain', dest='pretrained', action='store_false',
                         help='not to use ImageNet pre-trained weights')
+    parser.add_argument('-i', '--input-shape', dest='input_shape', default=[3,224,224], nargs="*", type=int, help='input shape for conversion (default: [3,224,224])')
+    parser.add_argument('-o', '--onnx-file', dest='onnx_file', default='model.onnx', type=str, help='onnx file out')
     parser.set_defaults(pretrained=True)
     args = parser.parse_args()
     if args.modality == 'rgb' and args.num_samples != 0:
