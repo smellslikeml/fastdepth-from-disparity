@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+import blobconverter
 
 import torch
 from torch.utils.data import DataLoader
@@ -11,24 +12,24 @@ import torch.optim
 import torch.onnx
 cudnn.benchmark = True
 
-from models import ResNet
-from mobilenet_models import MobileNetSkipAdd
-from metrics import AverageMeter, Result
-from dataloaders.dense_to_sparse import UniformSampling, SimulatedStereo
-import criteria
 import utils
 
 args = utils.parse_command()
 print(args)
 
 #Function to Convert to ONNX
-def convert_ONNX(model, save_name="model_nyu.onnx", input_size=(3, 480, 640)):
+def convert_ONNX(model, save_name="model.onnx", input_shape=[3, 224,224]):
 
     # set the model to inference mode
     model.eval()
 
-    # Let's create a dummy input tensor
-    dummy_input = torch.randn(1, 3, 224, 224, requires_grad=True)
+    # Create a dummy input tensor
+    if len(input_shape) == 3:
+        dummy_input = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], requires_grad=True)
+    elif len(input_shape) == 4:
+        dummy_input = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], input_shape[3], requires_grad=True)
+    else:
+        raise Exception('Unsupported input shape. Must be of length 3 or 4')
 
     # Export the model
     torch.onnx.export(model,         # model being run
@@ -44,6 +45,8 @@ def convert_ONNX(model, save_name="model_nyu.onnx", input_size=(3, 480, 640)):
 def main():
     global args, best_result, output_directory, train_csv, test_csv
     device = torch.device('cpu')
+    input_shape = args.input_shape
+    onnx_file = args.onnx_file
 
     print("\n1. Define Model")
     assert os.path.isfile(args.evaluate), \
@@ -55,8 +58,17 @@ def main():
     start_epoch = checkpoint['epoch'] + 1
     best_result = checkpoint['best_result']
     model = checkpoint['model'].to(device)
-    print("\n2. Covert Model")
-    convert_ONNX(model, save_name="nyudepthv2_mobilenetv2_lr001.onnx")
+    print("\n2. Covert Model to ONNX")
+    convert_ONNX(model, save_name=onnx_file, input_shape=input_shape)
+    print("\n3. Covert Model to Blob")
+    shape_settings = "--input_shape={}".format(str([1] + input_shape))
+    blob_path = blobconverter.from_onnx(
+            model=onnx_file,
+            data_type="FP16",
+            shaves=6,
+            optimizer_params=[shape_settings],
+        ) 
+    print("Saved blob model to {}".format(blob_path))
     print("Done")
 
 
