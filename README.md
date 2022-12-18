@@ -1,4 +1,4 @@
-FastDepth with Disparity 
+FastDepth from Disparity 
 ============================
 
 This repo contains the code base to train and deploy a modified [FastDepth model architecture](https://arxiv.org/pdf/1709.07492.pdf) using both RBG images and disparity maps inputs for fast depth estimation. We also include scripts for dataset creation and deployment using [OAK-D camera variants](https://shop.luxonis.com/products/oak-d). 
