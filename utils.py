@@ -116,10 +116,9 @@ def merge_into_row(input, depth_target, depth_pred):
     
     return img_merge
 
-def merge_into_row_with_disp(input, depth_target, depth_pred):
-    rgb, disp = input.split(1, dim=1)
-    rgb = 255 * np.transpose(np.squeeze(rgb.cpu().numpy()), (1,2,0)) # H, W, C
-    disp = 255 * np.transpose(np.squeeze(disp.cpu().numpy()), (1,2,0)) # H, W, C
+def merge_into_row_with_disp(input_rgb, input_disp, depth_target, depth_pred):
+    rgb = 255 * np.transpose(np.squeeze(input_rgb.cpu().numpy()), (1,2,0)) # H, W, C
+    disp = 255 * np.transpose(np.squeeze(input_disp.cpu().numpy()), (1,2,0)) # H, W, C
     depth_target_cpu = np.squeeze(depth_target.cpu().numpy())
     depth_pred_cpu = np.squeeze(depth_pred.data.cpu().numpy())
 
@@ -130,7 +129,6 @@ def merge_into_row_with_disp(input, depth_target, depth_pred):
     img_merge = np.hstack([rgb, disp, depth_target_col, depth_pred_col])
     
     return img_merge
-
 
 def merge_into_row_with_gt(input, depth_input, depth_target, depth_pred):
     rgb = 255 * np.transpose(np.squeeze(input.cpu().numpy()), (1,2,0)) # H, W, C

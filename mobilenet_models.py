@@ -819,12 +819,12 @@ class MobileNetSkipAddDisp(nn.Module):
 
         weights_init(self.decode_conv6)
 
-    def forward(self, x):
+    def forward(self, x, y):
         # skip connections: dec4: enc1
         # dec 3: enc2 or enc3
         # dec 2: enc4 or enc5
-        rgb, disp = x.split(1, dim=1)
-        rgb, disp = torch.squeeze(rgb), torch.squeeze(disp)
+        rgb, disp = x,y
+        #rgb, disp = torch.squeeze(rgb), torch.squeeze(disp)
         if len(rgb.shape) < 4 or len(disp.shape) < 4:
             rgb = rgb[None, :]
             disp = disp[None, :]
@@ -866,9 +866,9 @@ class MobileNetSkipAddDisp(nn.Module):
                 rgb = rgb + rgb3
                 disp = disp + disp3
             # print("{}: {}".format(i, x.size()))
-        x = (rgb + disp) / 2
-        x = self.decode_conv6(x)
-        return x
+        out = (rgb + disp) / 2
+        out = self.decode_conv6(out)
+        return out
 
 
 class MobileNetSkipConcat(nn.Module):
