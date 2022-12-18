@@ -11,11 +11,11 @@ The original Torch implementation of the paper can be found [here](https://githu
 
 ## Contents
 0. [Requirements](#requirements)
+0. [Data](#data)
 0. [Training](#training)
 0. [Testing](#testing)
-0. [Trained Models](#trained-models)
-0. [Benchmark](#benchmark)
-0. [Citation](#citation)
+0. [Deployment](#deployment)
+0. [References](#references)
 
 ## Requirements
 This code was tested with Python 3, Pytorch 0.4.1, and CUDA 9.2.
