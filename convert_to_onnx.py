@@ -18,33 +18,38 @@ args = utils.parse_command()
 print(args)
 
 #Function to Convert to ONNX
-def convert_ONNX(model, save_name="model.onnx", input_shape=[3, 224,224]):
+def convert_ONNX(model, save_name="model.onnx", input_shape=[3, 224,224], arch="mobilenet_v2_disp"):
 
     # set the model to inference mode
     model.eval()
 
-    # Create a dummy input tensor
-    if len(input_shape) == 3:
-        dummy_input = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], requires_grad=True)
-    elif len(input_shape) == 4:
-        dummy_input = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], input_shape[3], requires_grad=True)
+    if arch == 'mobilenet_v2_disp':
+        dummy_input_rgb = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], requires_grad=True)
+        dummy_input_disp = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], requires_grad=True)
+        torch.onnx.export(model,         # model being run
+             (dummy_input_rgb, dummy_input_disp),       # model input (or a tuple for multiple inputs)
+             save_name,       # where to save the model
+             export_params=True,  # store the trained parameter weights inside the model file
+             input_names = ['rgb', 'disp'],   # the model's input names
+             output_names = ['output'] # the model's output names
+             )
     else:
-        raise Exception('Unsupported input shape. Must be of length 3 or 4')
+        dummy_input = torch.randn(1, input_shape[0], input_shape[1], input_shape[2], requires_grad=True)
+        torch.onnx.export(model,         # model being run
+             dummy_input,       # model input (or a tuple for multiple inputs)
+             save_name,       # where to save the model
+             export_params=True,  # store the trained parameter weights inside the model file
+             input_names = ['rgb'],   # the model's input names
+             output_names = ['output'] # the model's output names
+             )
 
-    # Export the model
-    torch.onnx.export(model,         # model being run
-         dummy_input,       # model input (or a tuple for multiple inputs)
-         save_name,       # where to save the model
-         export_params=True,  # store the trained parameter weights inside the model file
-         input_names = ['modelInput'],   # the model's input names
-         output_names = ['modelOutput'] # the model's output names
-         )
     print(" ")
     print('Model has been converted to ONNX')
 
 def main():
     global args, best_result, output_directory, train_csv, test_csv
     device = torch.device('cpu')
+    arch = args.arch
     input_shape = args.input_shape
     onnx_file = args.onnx_file
 
@@ -59,14 +64,19 @@ def main():
     best_result = checkpoint['best_result']
     model = checkpoint['model'].to(device)
     print("\n2. Covert Model to ONNX")
-    convert_ONNX(model, save_name=onnx_file, input_shape=input_shape)
+    convert_ONNX(model, save_name=onnx_file, input_shape=input_shape, arch=arch)
     print("\n3. Covert Model to Blob")
-    shape_settings = "--input_shape={}".format(str([1] + input_shape))
+    if arch == 'mobilenet_v2_disp':
+        shape_settings = "--input_shape={}".format(",".join([str([1] + input_shape), str([1] + input_shape)]))
+        input_settings = "--input={}".format("rgb,disp")
+    else:
+        shape_settings = "--input_shape={}".format(str([1] + input_shape))
+        input_settings = "--input={}".format("rgb")
     blob_path = blobconverter.from_onnx(
             model=onnx_file,
             data_type="FP16",
             shaves=6,
-            optimizer_params=[shape_settings],
+            optimizer_params=[input_settings, shape_settings],
         ) 
     print("Saved blob model to {}".format(blob_path))
     print("Done")

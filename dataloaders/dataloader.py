@@ -217,14 +217,12 @@ class DispDataloader(data.Dataset):
         """
         path, target = self.imgs[index]
         rgb, disp, depth = self.loader(path)
-        return (rgb, disp), depth
+        return rgb, disp, depth
 
     def __getitem__(self, index):
-        imgs, depth = self.__getraw__(index)
-        rgb, disp = imgs
+        rgb, disp, depth = self.__getraw__(index)
         if self.transform is not None:
-            imgs_np, depth_np = self.transform((rgb, disp), depth)
-            rgb_np, disp_np = imgs_np
+            rgb_np, disp_np, depth_np = self.transform(rgb, disp, depth)
         else:
             raise(RuntimeError("transform not defined"))
 
@@ -232,16 +230,14 @@ class DispDataloader(data.Dataset):
         # rgb_tensor = normalize_rgb(rgb_tensor)
         # rgb_np = normalize_np(rgb_np)
 
-        if self.modality == 'rgb':
-            input_np = (to_tensor(rgb_np), to_tensor(disp_np))
-
-        input_tensor = transforms.tuple_of_tensors_to_tensor(input_np)
         #while input_tensor.dim() < 3:
         #    input_tensor = input_tensor.unsqueeze(0)
+        rgb_tensor = to_tensor(rgb_np)
+        disp_tensor = to_tensor(disp_np)
         depth_tensor = to_tensor(depth_np)
         depth_tensor = depth_tensor.unsqueeze(0)
 
-        return input_tensor, depth_tensor
+        return rgb_tensor, disp_tensor, depth_tensor
 
     def __len__(self):
         return len(self.imgs)

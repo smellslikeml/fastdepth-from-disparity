@@ -169,6 +169,7 @@ def main():
     for epoch in range(start_epoch, args.epochs):
         utils.adjust_learning_rate(optimizer, epoch, args.lr)
         train(train_loader, model, criterion, optimizer, epoch) # train for one epoch
+        #result, img_merge = validate(val_loader, model, epoch) # evaluate on validation set
         result, img_merge = validate(val_loader, model, epoch) # evaluate on validation set
 
         # remember best rmse and save checkpoint
@@ -196,15 +197,27 @@ def train(train_loader, model, criterion, optimizer, epoch, arch=args.arch):
     average_meter = AverageMeter()
     model.train() # switch to train mode
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    for i, sample in enumerate(train_loader):
+        if len(sample) < 3:
+            rgb, target = sample
+            rgb, target = rgb.cuda(), target.cuda()
+            torch.cuda.synchronize()
+            data_time = time.time() - end
 
-        input, target = input.cuda(), target.cuda()
-        torch.cuda.synchronize()
-        data_time = time.time() - end
+            # compute pred
+            end = time.time()
+            pred = model(rgb)
+        elif len(sample) == 3:
+            rgb, disp, target = sample
+            rgb, disp, target = rgb.cuda(), disp.cuda(), target.cuda()
+            torch.cuda.synchronize()
+            data_time = time.time() - end
 
-        # compute pred
-        end = time.time()
-        pred = model(input)
+            # compute pred
+            end = time.time()
+            pred = model(rgb, disp)
+
+
         loss = criterion(pred, target)
         optimizer.zero_grad()
         loss.backward() # compute gradient and do SGD step
@@ -215,7 +228,7 @@ def train(train_loader, model, criterion, optimizer, epoch, arch=args.arch):
         # measure accuracy and record loss
         result = Result()
         result.evaluate(pred.data, target.data)
-        average_meter.update(result, gpu_time, data_time, input.size(0))
+        average_meter.update(result, gpu_time, data_time, rgb.size(0))
         end = time.time()
 
         if (i + 1) % args.print_freq == 0:
@@ -243,60 +256,38 @@ def validate(val_loader, model, epoch, write_to_file=True):
     average_meter = AverageMeter()
     model.eval() # switch to evaluate mode
     end = time.time()
-    for i, (input, target) in enumerate(val_loader):
-        input, target = input.cuda(), target.cuda()
-        torch.cuda.synchronize()
-        data_time = time.time() - end
+    disp = None
+    for i, sample in enumerate(val_loader):
+        print(len(sample))
+        if len(sample) < 3:
+            rgb, target = sample
+            rgb, target = rbg.cuda(), target.cuda()
+            torch.cuda.synchronize()
+            data_time = time.time() - end
 
-        # compute output
-        end = time.time()
-        with torch.no_grad():
-            pred = model(input)
+            # compute output
+            end = time.time()
+            with torch.no_grad():
+                pred = model(rgb)
+        elif len(sample) == 3:
+            rgb, disp, target = sample
+            rgb, disp, target = rgb.cuda(), disp.cuda(), target.cuda()
+            torch.cuda.synchronize()
+            data_time = time.time() - end
+
+            # compute output
+            end = time.time()
+            with torch.no_grad():
+                pred = model(rgb, disp)
+
         torch.cuda.synchronize()
         gpu_time = time.time() - end
 
         # measure accuracy and record loss
         result = Result()
         result.evaluate(pred.data, target.data)
-        average_meter.update(result, gpu_time, data_time, input.size(0))
+        average_meter.update(result, gpu_time, data_time, rgb.size(0))
         end = time.time()
-
-        # save 8 images for visualization
-        skip = 50
-        if args.modality == 'd':
-            img_merge = None
-        else:
-            if args.modality == 'rgb':
-                rgb = input
-            elif args.modality == 'rgbd':
-                rgb = input[:,:3,:,:]
-                depth = input[:,3:,:,:]
-
-            if i == 0:
-                if args.modality == 'rgbd':
-                    img_merge = utils.merge_into_row_with_gt(rgb, depth, target, pred)
-                #elif args.arch == 'mobilenetv2_disp':
-                #    img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
-                else:
-                    if args.modality == 'rgb':
-                        if args.arch == 'mobilenet_v2_disp':
-                            img_merge = utils.merge_into_row_with_disp(rgb, target, pred)
-                        else:
-                            img_merge = utils.merge_into_row(rgb, target, pred)
-            elif (i < 8*skip) and (i % skip == 0):
-                if args.modality == 'rgbd':
-                    row = utils.merge_into_row_with_gt(rgb, depth, target, pred)
-                else:
-                    if args.modality == 'rgb':
-                        if args.arch == 'mobilenet_v2_disp':
-                            row = utils.merge_into_row_with_disp(rgb, target, pred)
-                        else:
-                            row = utils.merge_into_row(rgb, target, pred)
-
-                img_merge = utils.add_row(img_merge, row)
-            elif i == 8*skip:
-                filename = output_directory + '/comparison_' + str(epoch) + '.png'
-                utils.save_image(img_merge, filename)
 
         if (i+1) % args.print_freq == 0:
             print('Test: [{0}/{1}]\t'
@@ -325,7 +316,7 @@ def validate(val_loader, model, epoch, write_to_file=True):
             writer.writerow({'mse': avg.mse, 'rmse': avg.rmse, 'absrel': avg.absrel, 'lg10': avg.lg10,
                 'mae': avg.mae, 'delta1': avg.delta1, 'delta2': avg.delta2, 'delta3': avg.delta3,
                 'data_time': avg.data_time, 'gpu_time': avg.gpu_time})
-    return avg, img_merge
+    return avg, None
 
 if __name__ == '__main__':
     main()
